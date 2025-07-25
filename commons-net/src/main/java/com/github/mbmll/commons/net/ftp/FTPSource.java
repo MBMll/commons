@@ -6,6 +6,7 @@ import org.apache.commons.net.ftp.FTPReply;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 public class FTPSource {
     private Semaphore semaphore;
@@ -16,7 +17,7 @@ public class FTPSource {
 
     public FTPConnection createAndConnectFTPClient(FTPConnectionProperties props)
             throws IOException {
-        FTPClientWrapper connection = new FTPClientWrapper();
+        var connection = new FTPClientWrapper();
         connection.setControlEncoding(StandardCharsets.UTF_8.name());
         connection.setConnectTimeout(Math.toIntExact(props.getConnectTimeout()));
         connection.setDataTimeout(Math.toIntExact(props.getDataTimeout()));
@@ -45,11 +46,26 @@ public class FTPSource {
      */
     public FTPConnection getConnection(FTPConnectionProperties props) throws InterruptedException, IOException {
         semaphore.acquire();
-        try {
+        return createAndConnectFTPClient(props);
+    }
+
+    /**
+     * Get FTP connection with timeout
+     *
+     * @param props   FTP connection properties
+     * @param timeout timeout in milliseconds
+     *
+     * @return FTP connection
+     *
+     * @throws InterruptedException if the current thread is interrupted while waiting
+     * @throws IOException          if an I/O error occurs
+     */
+    public FTPConnection getConnection(FTPConnectionProperties props, long timeout) throws InterruptedException,
+            IOException {
+        if (semaphore.tryAcquire(timeout, TimeUnit.MILLISECONDS)) {
             return createAndConnectFTPClient(props);
-        } finally {
-            semaphore.release();
         }
+        throw new IOException("Failed to get FTP connection within timeout");
     }
 
     public class FTPClientWrapper extends FTPConnection {
