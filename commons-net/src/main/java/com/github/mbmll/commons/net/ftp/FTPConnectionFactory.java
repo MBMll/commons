@@ -22,8 +22,7 @@ public class FTPConnectionFactory {
     public FTPConnection getConnection(FTPConnectionProperties props, int size)
             throws IOException, InterruptedException {
         String server = props.getHost() + ":" + props.getPort();
-        FTPSource ftpSource = pool.putIfAbsent(server, new FTPSource(new Semaphore(size)));
-        assert ftpSource != null;
+        FTPSource ftpSource = pool.computeIfAbsent(server, k -> new FTPSource(new Semaphore(size)));
         return ftpSource.getConnection(props);
     }
 }
